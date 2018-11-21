@@ -3,28 +3,26 @@ import datetime
 import logging
 
 import requests
-import yarl
-
-from weather_locals import BASE_URL, APPID
-
-import time
-import pytz
 import tzlocal
+import yarl
 
 logger = logging.getLogger()
 
 
 class WeatherSpider:
-    def __init__(self, city_name):
-        self.city_name = city_name
-        self.export_file_name = f"out_{city_name}.csv"
+    def __init__(self, city_id, appid, base_url):
+        self.city_id = city_id
+        self.appid = appid
+        self.base_url = base_url
+        self.export_file_name = f"./out/out_{city_id}.csv"
+
 
     def grab(self):
         params = {}
-        params['q'] = self.city_name
-        params['appid'] = APPID
+        params['id'] = self.city_id
+        params['appid'] = self.appid
         params['units'] = 'metric'
-        url = yarl.URL(BASE_URL).with_query(params)
+        url = yarl.URL(self.base_url).with_query(params)
 
         resp = requests.get(url)
         main = resp.json().get('main', {})

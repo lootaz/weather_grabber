@@ -3,23 +3,27 @@ import logging.config
 import sys
 from multiprocessing.pool import ThreadPool
 
-import requests
-import sched
+import toml
 
 from schedule_service import ScheduleService
-from weather_locals import APPID, PERIOD_SEC
 from weather_spider import WeatherSpider
 
 logger = logging.getLogger()
 
 
 class MainWorker:
-    def __init__(self):
+    def __init__(self, configs):
         self.pool = ThreadPool(5)
 
-        ws_samara = WeatherSpider("Samara")
+        city_ids = configs.get('city_ids')
+        period_sec = configs.get('period_sec')
+        appid = configs.get('appid')
+        base_url = configs.get('base_url')
+
         self.schedules = []
-        self.schedules.append(ScheduleService("WeatherSpider Samara", PERIOD_SEC, ws_samara.grab))
+        for city_id in city_ids:
+            grabber = WeatherSpider(city_id, appid, base_url)
+            self.schedules.append(ScheduleService(f"WeatherSpider [{city_id}]", period_sec, grabber.grab))
 
     def run_schedule(self, schedule):
         schedule.periodic()
@@ -30,14 +34,23 @@ class MainWorker:
 
 
 def init_logging():
-    logging.config.fileConfig('logging.conf')
+    logging.config.fileConfig('./config/logging.conf')
+
+
+def init_main():
+    with open('./config/main.toml') as fin:
+        configs = toml.load(fin)
+        return configs
 
 
 if __name__ == '__main__':
     init_logging()
-    if not APPID:
+    configs = init_main()
+    openweathermap = configs.get('openweathermap')
+
+    if not openweathermap.get('appid'):
         logger.error("Необходим APPID ключ")
         sys.exit(-1)
 
-    mw = MainWorker()
+    mw = MainWorker(openweathermap)
     mw.run()
