@@ -1,7 +1,6 @@
 import logging
 import logging.config
 import sys
-from multiprocessing.pool import ThreadPool
 
 import toml
 
@@ -13,24 +12,20 @@ logger = logging.getLogger()
 
 class MainWorker:
     def __init__(self, configs):
+        period_sec = configs.get('openweathermap', {}).get('period_sec')
+        if not period_sec:
+            logger.error("Необходим 'period_sec'")
+            sys.exit(-1)
 
-        city_ids = configs.get('city_ids')
-        period_sec = configs.get('period_sec')
-        appid = configs.get('appid')
-        base_url = configs.get('base_url')
+        weather_spider = WeatherSpider(configs)
 
-        self.pool = ThreadPool(len(city_ids))
         self.schedules = []
-        for city_id in city_ids:
-            grabber = WeatherSpider(city_id, appid, base_url)
-            self.schedules.append(ScheduleService(f"WeatherSpider [{city_id}]", period_sec, grabber.grab))
-
-    def run_schedule(self, schedule):
-        schedule.periodic()
-        schedule.run()
+        self.schedules.append(ScheduleService(f"WeatherSpider", period_sec, weather_spider.grab))
 
     def run(self):
-        self.pool.map(self.run_schedule, self.schedules)
+        for schedule in self.schedules:
+            schedule.periodic()
+            schedule.run()
 
 
 def init_logging():
@@ -38,7 +33,7 @@ def init_logging():
 
 
 def init_main():
-    with open('./config/main.toml') as fin:
+    with open('./config/main.toml', encoding='utf-8') as fin:
         configs = toml.load(fin)
         return configs
 
@@ -46,11 +41,10 @@ def init_main():
 if __name__ == '__main__':
     init_logging()
     configs = init_main()
-    openweathermap = configs.get('openweathermap')
 
-    if not openweathermap.get('appid'):
+    if not configs.get('openweathermap', {}).get('appid'):
         logger.error("Необходим APPID ключ")
         sys.exit(-1)
 
-    mw = MainWorker(openweathermap)
+    mw = MainWorker(configs)
     mw.run()

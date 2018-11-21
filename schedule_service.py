@@ -1,7 +1,6 @@
+import logging
 import sched
 from datetime import datetime
-import logging
-
 
 logger = logging.getLogger()
 
@@ -14,10 +13,10 @@ class ScheduleService:
         self.scheduler = sched.scheduler()
 
     def periodic(self):
-        logger.info("[%s] Schedule '%s' executed" % (datetime.utcnow(), self.name))
+        logger.info("[%s] Schedule '%s' begin..." % (datetime.utcnow(), self.name))
         self.action()
         self.scheduler.enter(self.interval, 1, self.periodic)
-        logger.info("[%s] Schedule '%s' complete" % (datetime.utcnow(), self.name))
+        logger.info("[%s] Schedule '%s' completed!" % (datetime.utcnow(), self.name))
 
     def run(self):
         self.scheduler.run()

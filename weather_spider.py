@@ -1,7 +1,8 @@
-import csv
 import datetime
 import logging
+import os
 
+import pyexcel
 import requests
 import tzlocal
 import yarl
@@ -10,40 +11,64 @@ logger = logging.getLogger()
 
 
 class WeatherSpider:
-    def __init__(self, city_id, appid, base_url):
-        self.city_id = city_id
-        self.appid = appid
-        self.base_url = base_url
-        self.export_file_name = f"./out/out_{city_id}.csv"
+    HEADERS = ("Дата запроса", "Время измерения", "Температура, *C", "Давление, hPa", "Влажность, %")
 
+    def __init__(self, configs):
+        self.configs = configs
+        self.openweathermap = self.configs.get('openweathermap', {})
+        self.cities = self.configs.get('cities', [])
+
+    def check_out(self):
+        if not os.path.exists('out'):
+            os.mkdir('out')
+
+        self.export_file_path = './out/out.xls'
+        if not os.path.exists(self.export_file_path):
+            data = {}
+            for city in self.cities.values():
+                data[city.get('name_ru')] = [self.HEADERS, ]
+            pyexcel.save_book_as(
+                bookdict=data,
+                dest_file_name=self.export_file_path,
+                dest_encoding="utf-8"
+            )
 
     def grab(self):
+        self.check_out()
+
+        openweathermap = self.configs.get('openweathermap', {})
         params = {}
-        params['id'] = self.city_id
-        params['appid'] = self.appid
+        params['appid'] = openweathermap.get('appid')
         params['units'] = 'metric'
-        url = yarl.URL(self.base_url).with_query(params)
 
-        resp = requests.get(url)
-        main = resp.json().get('main', {})
-        temp = main.get('temp', {})
-        pressure = main.get('pressure')
-        humidity = main.get('humidity')
-        dt = resp.json().get('dt')
-        calc_time = datetime.datetime.fromtimestamp(dt, datetime.timezone.utc)
-        now = datetime.datetime.now(tzlocal.get_localzone())
+        book = pyexcel.get_book(file_name=self.export_file_path)
+        for city in self.cities.values():
+            params['id'] = city.get('id')
+            url = yarl.URL(openweathermap.get('base_url')).with_query(params)
+            resp = requests.get(url)
+            if resp.status_code != 200:
+                logger.warning(f"{city.get('name_ru')} [{url}]: {resp.status_code} {resp.reason}")
+                continue
 
-        data = {
-            "Дата запроса": now.isoformat(),
-            "Время измерения": calc_time.isoformat(),
-            "Температура": temp,
-            "Давление": pressure,
-            "Влажность": humidity
-        }
-        self.export(data)
-        logger.info(data)
+            main = resp.json().get('main', {})
 
-    def export(self, data):
-        with open(self.export_file_name, 'a', encoding='utf-8', newline='') as csvfile:
-            weather_writer = csv.writer(csvfile)
-            weather_writer.writerow(data.values())
+            temp = main.get('temp')
+            pressure = main.get('pressure')
+            humidity = main.get('humidity')
+            dt = resp.json().get('dt')
+
+            calc_time = datetime.datetime.fromtimestamp(dt, datetime.timezone.utc)
+            now = datetime.datetime.now(tzlocal.get_localzone())
+
+            data = [now.isoformat(),
+                    calc_time.isoformat(),
+                    temp,
+                    pressure,
+                    humidity]
+            sheet = book[city.get('name_ru')]
+            sheet.row += data
+
+            log_msg = f"{city.get('name_ru')}: {dict(zip(self.HEADERS, data))}"
+            logger.info(log_msg)
+
+        book.save_as(self.export_file_path)

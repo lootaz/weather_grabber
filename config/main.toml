@@ -1,5 +1,38 @@
 [openweathermap]
 appid = ""
 base_url = "https://api.openweathermap.org/data/2.5/weather"
-city_ids = [499099,867005,548625,472229,541337,467819,544203,522945]
 period_sec = 1800
+
+[cities]
+    [cities.1]
+    id = 499099
+    name = "Samara"
+    name_ru = "Самара"
+    [cities.2]
+    id = 867005
+    name = "Petra-Dubrava"
+    name_ru = "Петра-Дубрава"
+    [cities.3]
+    id = 548625
+    name = "Kinel"
+    name_ru = "Кинель"
+    [cities.4]
+    id = 472229
+    name = "Volzhskiy"
+    name_ru = "Волжский"
+    [cities.5]
+    id = 541337
+    name = "Krasnyy Yar"
+    name_ru = "Красный яр"
+    [cities.6]
+    id = 467819
+    name = "Yelkhovka"
+    name_ru = "Елховка"
+    [cities.7]
+    id = 544203
+    name = "Koshki"
+    name_ru = "Кошки"
+    [cities.8]
+    id = 522945
+    name = "Neftegorsk"
+    name_ru = "Нефтегорск"
