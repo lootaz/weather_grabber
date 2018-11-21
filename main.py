@@ -13,13 +13,13 @@ logger = logging.getLogger()
 
 class MainWorker:
     def __init__(self, configs):
-        self.pool = ThreadPool(5)
 
         city_ids = configs.get('city_ids')
         period_sec = configs.get('period_sec')
         appid = configs.get('appid')
         base_url = configs.get('base_url')
 
+        self.pool = ThreadPool(len(city_ids))
         self.schedules = []
         for city_id in city_ids:
             grabber = WeatherSpider(city_id, appid, base_url)
