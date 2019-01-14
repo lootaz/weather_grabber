@@ -42,33 +42,41 @@ class WeatherSpider:
         params['units'] = 'metric'
 
         book = pyexcel.get_book(file_name=self.export_file_path)
-        for city in self.cities.values():
-            params['id'] = city.get('id')
-            url = yarl.URL(openweathermap.get('base_url')).with_query(params)
-            resp = requests.get(url)
-            if resp.status_code != 200:
-                logger.warning(f"{city.get('name_ru')} [{url}]: {resp.status_code} {resp.reason}")
-                continue
+        try:
+            for city in self.cities.values():
+                params['id'] = city.get('id')
+                url = yarl.URL(openweathermap.get('base_url')).with_query(params)
+            
+                resp = requests.get(url)
 
-            main = resp.json().get('main', {})
-
-            temp = main.get('temp')
-            pressure = main.get('pressure')
-            humidity = main.get('humidity')
-            dt = resp.json().get('dt')
-
-            calc_time = datetime.datetime.fromtimestamp(dt, datetime.timezone.utc)
-            now = datetime.datetime.now(tzlocal.get_localzone())
-
-            data = [now.isoformat(),
-                    calc_time.isoformat(),
-                    temp,
-                    pressure,
-                    humidity]
-            sheet = book[city.get('name_ru')]
-            sheet.row += data
-
-            log_msg = f"{city.get('name_ru')}: {dict(zip(self.HEADERS, data))}"
-            logger.info(log_msg)
-
-        book.save_as(self.export_file_path)
+                if resp.status_code != 200:
+                    logger.warning(f"{city.get('name_ru')} [{url}]: {resp.status_code} {resp.reason}")
+                    continue
+    
+                main = resp.json().get('main', {})
+    
+                temp = main.get('temp')
+                pressure = main.get('pressure')
+                humidity = main.get('humidity')
+                dt = resp.json().get('dt')
+    
+                calc_time = datetime.datetime.fromtimestamp(dt, datetime.timezone.utc)
+                now = datetime.datetime.now(tzlocal.get_localzone())
+    
+                data = [now.isoformat(),
+                        calc_time.isoformat(),
+                        temp,
+                        pressure,
+                        humidity]
+                sheet = book[city.get('name_ru')]
+                sheet.row += data
+    
+                log_msg = f"{city.get('name_ru')}: {dict(zip(self.HEADERS, data))}"
+                logger.info(log_msg)
+    
+            try:
+                book.save_as(self.export_file_path)
+            except PermissionError as ex:
+                logger.error(f"Ошибка записи файла '{self.export_file_path}'. Результаты не сохранены", ex)
+        except requests.exceptions.ConnectionError as ex:
+            logger.error("Ошибка сети. Проверьте подключение к интернету", ex)
